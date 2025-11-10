@@ -176,18 +176,41 @@ function showImageToolbar(img, x, y) {
   styleMiniBtn(del, "#dc3545");
   del.onclick = () => { img.remove(); toolbarDiv.remove(); };
 
-  const smaller = document.createElement("button");
-  smaller.textContent = "−";
-  styleMiniBtn(smaller, "#6c757d");
-  smaller.onclick = () => img.style.width = Math.max(50, img.clientWidth - 20) + "px";
+// create toolbar buttons
+const smaller = document.createElement("button");
+smaller.textContent = "−";
+styleMiniBtn(smaller, "#6c757d");
 
-  const bigger = document.createElement("button");
-  bigger.textContent = "+";
-  styleMiniBtn(bigger, "#6c757d");
-  bigger.onclick = () => img.style.width = (img.clientWidth + 20) + "px";
+const bigger = document.createElement("button");
+bigger.textContent = "+";
+styleMiniBtn(bigger, "#6c757d");
 
-  toolbarDiv.append(smaller, bigger, del);
-  document.body.appendChild(toolbarDiv);
+// helper to limit image growth
+function maxGrowWidth(img) {
+  const container = img.parentElement;
+  const containerW = container ? container.clientWidth : 2000;
+  const naturalW = img.naturalWidth || 2000;
+  return Math.min(containerW, naturalW);
+}
+
+// resize handlers
+smaller.onclick = () => {
+  const cur = img.clientWidth || parseFloat(img.style.width) || 300;
+  const next = Math.max(50, cur - 20);
+  img.style.width = next + "px";
+};
+
+bigger.onclick = () => {
+  const cur = img.clientWidth || parseFloat(img.style.width) || 300;
+  const cap = maxGrowWidth(img);
+  const next = Math.min(cap, cur + 20);
+  img.style.width = next + "px";
+};
+
+// build toolbar
+toolbarDiv.append(smaller, bigger, del);
+document.body.appendChild(toolbarDiv);
+
 
   // auto hide after a while / or next click away
   setTimeout(() => { if (toolbarDiv) toolbarDiv.remove(); }, 4000);
@@ -258,7 +281,8 @@ document.addEventListener("click", (ev) => {
   img.setAttribute("data-final-src", placingImage.finalPath);
   img.setAttribute("data-dc", "1");        // mark as editor-placed
   img.style.position = "absolute";
-  img.style.maxWidth = "320px";
+img.style.maxWidth = "none";   // no cap
+img.style.width = "300px";     // starting size; you can grow from here
   img.style.left = "0px";
   img.style.top  = "0px";
 
