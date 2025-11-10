@@ -299,19 +299,99 @@ img.style.width = "300px";     // starting size; you can grow from here
   placingImage = null;
 }, true); // capture so we always get first shot
 
-// ---------- SAVE ----------
 async function saveCurrentPage() {
-  const html = currentHtmlForSave();
-  const path = pagePath();
+  if (!ADMIN_KEY) return alert("Unlock Admin first.");
 
-  const res = await fetch(WORKER_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Admin-Key": ADMIN_KEY },
-    body: JSON.stringify({ action: "save", path, contentText: html, message: `Update ${path}` })
-  });
-  if (res.ok) alert("✅ Saved!");
-  else alert("❌ Save failed:\n" + await res.text());
+  // Build final HTML: clone + strip admin UI + add a timestamp marker
+  const clone = document.documentElement.cloneNode(true);
+  stripForSave(clone);
+
+  const stamp = `<!-- saved:${new Date().toISOString()} -->`;
+  const finalHtml = "<!DOCTYPE html>\n" + clone.outerHTML.replace("</body>", `${stamp}\n</body>`);
+  const path = (function pagePath(){
+    const p = location.pathname.split("/").pop();
+    return p && p.length ? p : "index.html";
+  })();
+
+  // Send to your Worker (it base64-encodes & commits to GitHub)
+  let res, txt;
+  try {
+    res = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Key": ADMIN_KEY },
+      body: JSON.stringify({
+        action: "save",
+        path,
+        contentText: finalHtml,   // primary field
+        content: finalHtml,       // fallback field name
+        message: `Update ${path} via in-page editor`
+      })
+    });
+    txt = await res.text();
+  } catch (e) {
+    console.error(e);
+    toast("❌ Save failed: network error", 5000, true);
+    return;
+  }
+
+  if (!res.ok) {
+    console.error("Worker save error:", txt);
+    toast("❌ Save failed (Worker): " + txt.slice(0, 200), 6000, true);
+    return;
+  }
+
+  // Poll the RAW GitHub file until we see our timestamp, then poll the LIVE site.
+  toast("✅ Saved to GitHub. Checking for updates…", 3000);
+
+  const RAW = `https://raw.githubusercontent.com/EvilKingSnowy/Distinctive-Craftsman-LLC/main/${path}`;
+  const startRaw = Date.now();
+  let rawUpdated = false;
+
+  // Wait up to 60s for raw file to contain our stamp
+  while (Date.now() - startRaw < 60000 && !rawUpdated) {
+    try {
+      const r = await fetch(RAW + "?_=" + Date.now());
+      const t = await r.text();
+      if (t.includes(stamp)) {
+        rawUpdated = true;
+        break;
+      }
+    } catch (_) {}
+    await new Promise(r => setTimeout(r, 4000));
+  }
+
+  if (!rawUpdated) {
+    toast("ℹ️ Commit done, but raw file hasn’t updated yet. It should appear shortly.", 6000);
+    return;
+  }
+
+  toast("✅ File updated on GitHub. Waiting for GitHub Pages…", 4000);
+
+  // Now wait up to 2 minutes for the LIVE site to serve the new HTML, then auto-reload
+  const LIVE_URL = window.location.href.split("#")[0];
+  const startLive = Date.now();
+  let liveUpdated = false;
+
+  while (Date.now() - startLive < 120000 && !liveUpdated) {
+    try {
+      const resp = await fetch(LIVE_URL + "?_=" + Date.now(), { cache: "no-store" });
+      const txt2 = await resp.text();
+      if (txt2.includes(stamp)) {
+        liveUpdated = true;
+        break;
+      }
+    } catch (_) {}
+    await new Promise(r => setTimeout(r, 5000));
+  }
+
+  if (liveUpdated) {
+    toast("✅ Live site updated — reloading…", 2500);
+    setTimeout(() => window.location.reload(true), 2500);
+  } else {
+    toast("ℹ️ Pages hasn’t refreshed yet. It’ll update soon — try a hard reload in ~1–2 min.", 7000);
+  }
 }
+
 
 // ---------- UI ----------
 const adminBtn  = makeBtn("Admin", "#6c757d", 20);
@@ -363,4 +443,27 @@ uploadBtn.onclick = () => {
 };
 
 // add buttons once
+function toast(msg, ms = 3000, isError = false) {
+  const d = document.createElement("div");
+  d.className = "dc-admin-ui";
+  d.textContent = msg;
+  Object.assign(d.style, {
+    position: "fixed",
+    left: "50%",
+    transform: "translateX(-50%)",
+    bottom: "85px",
+    background: isError ? "#dc3545" : "#222",
+    color: "#fff",
+    padding: "10px 14px",
+    borderRadius: "10px",
+    zIndex: 1000000,
+    fontSize: "14px",
+    boxShadow: "0 6px 20px rgba(0,0,0,.25)",
+    maxWidth: "90vw",
+    textAlign: "center"
+  });
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), ms);
+}
+
 document.body.append(adminBtn, editBtn, saveBtn, uploadBtn);
