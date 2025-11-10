@@ -1,73 +1,99 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Reviews • Distinctive Craftsman</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customer Reviews | Distinctive Craftsman LLC</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Header / Nav -->
-  <header class="site-header">
+
+<header class="site-header">
+  <a href="index.html" class="brand">
+    <img src="assets/logo.png" alt="Distinctive Craftsman LLC">
+  </a>
+  <nav class="site-nav">
+    <a href="index.html">Home</a>
+    <a href="about.html">About</a>
+    <a href="services.html">Services</a>
+    <a href="gallery.html">Gallery</a>
+    <a href="testimonials.html">Testimonials</a>
+    <a href="reviews.html" aria-current="page">Reviews</a>
+    <a href="employment.html">Employment</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+</header>
+
+<main>
+  <section class="section light">
     <div class="container">
-      <a class="logo" href="index.html">Distinctive Craftsman</a>
-      <nav class="site-nav">
-        <a href="index.html">Home</a>
-        <a href="about.html">About</a>
-        <a href="services.html">Services</a>
-        <a href="testimonials.html">Testimonials</a>
-        <a href="reviews.html" aria-current="page">Reviews</a><!-- << added here -->
-        <a href="gallery.html">Gallery</a>
-        <a href="contact.html">Contact</a>
-      </nav>
+      <h1>Customer Reviews</h1>
+      <p>See what others are saying about Distinctive Craftsman, or leave your own review below.</p>
+
+      <div id="reviews-list" class="card-list">
+        <!-- Reviews will show here -->
+      </div>
+
+      <h2>Leave a Review</h2>
+      <form id="review-form">
+        <input type="text" id="review-name" placeholder="Your Name" required>
+        <textarea id="review-text" placeholder="Your Review" required></textarea>
+        <button type="submit" class="btn primary">Submit Review</button>
+      </form>
     </div>
-  </header>
+  </section>
+</main>
 
-  <main>
-    <section class="section white">
-      <div class="container">
-        <h1>Reviews</h1>
-        <p>Read what customers are saying, and leave your own review.</p>
-      </div>
-    </section>
+<footer class="footer">
+  <div class="footer-col">
+    <p>Wisconsin's premier custom woodworking and home renovation specialists. Crafted with precision, built to last.</p>
+  </div>
+  <div class="footer-col">
+    <h4>Quick Links</h4>
+    <nav class="footer-nav">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="services.html">Services</a>
+      <a href="gallery.html">Gallery</a>
+      <a href="testimonials.html">Testimonials</a>
+      <a href="reviews.html" aria-current="page">Reviews</a>
+      <a href="employment.html">Employment</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+  </div>
+</footer>
 
-    <section class="section white">
-      <div class="container">
-        <!-- Reviews mount -->
-        <div id="reviews"></div>
-      </div>
-    </section>
-  </main>
+<div class="copyright">© 2025 Distinctive Craftsman LLC</div>
 
-  <!-- Footer -->
-  <footer class="site-footer">
-    <div class="container footer-grid">
-      <div class="footer-col">
-        <h4>Company</h4>
-        <nav>
-          <a href="index.html">Home</a>
-          <a href="about.html">About</a>
-          <a href="services.html">Services</a>
-          <a href="testimonials.html">Testimonials</a>
-          <a href="reviews.html">Reviews</a> <!-- << added here too -->
-          <a href="gallery.html">Gallery</a>
-          <a href="contact.html">Contact</a>
-        </nav>
-      </div>
-      <div class="footer-col">
-        <h4>Contact</h4>
-        <p>601 N. Ringold St., Janesville, WI 53545</p>
-        <p><a href="tel:+16084369003">(608) 436-9003</a></p>
-        <p>Fax: (608) 754-4515</p>
-        <p><a href="mailto:jeff@distinctivecraftsman.com">jeff@distinctivecraftsman.com</a></p>
-        <p>Mon–Fri 8–6 · Sat 9–3</p>
-      </div>
-    </div>
-    <div class="copyright">© 2025 Distinctive Craftsman LLC • <a href="#">Privacy</a> • <a href="#">Terms</a></div>
-  </footer>
+<script src="edit-mode.js"></script>
+<script>
+const reviewsList = document.getElementById("reviews-list");
+const form = document.getElementById("review-form");
 
-  <!-- Scripts -->
-  <script src="reviews.js"></script>
-  <script src="edit-mode.js"></script>
+function loadReviews() {
+  const reviews = JSON.parse(localStorage.getItem("reviews") || "[]");
+  reviewsList.innerHTML = "";
+  for (const r of reviews) {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `<strong>${r.name}</strong><p>${r.text}</p>`;
+    reviewsList.appendChild(div);
+  }
+}
+
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  const name = document.getElementById("review-name").value.trim();
+  const text = document.getElementById("review-text").value.trim();
+  if (!name || !text) return;
+  const reviews = JSON.parse(localStorage.getItem("reviews") || "[]");
+  reviews.unshift({ name, text });
+  localStorage.setItem("reviews", JSON.stringify(reviews));
+  form.reset();
+  loadReviews();
+});
+
+loadReviews();
+</script>
 </body>
 </html>
