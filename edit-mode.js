@@ -1,4 +1,4 @@
-// ===== Distinctive Craftsman — In-Page Editor (v5) =====
+// ===== Distinctive Craftsman — In-Page Editor (v6, all-in-one) =====
 //
 // ✅ Admin button (password gate) on every page
 // ✅ Edit text anywhere + mini toolbar (bold / italic / color)
@@ -7,7 +7,7 @@
 // ✅ Live auto-refresh after save when GitHub Pages updates
 // ✅ Auto-add YouTube icon in footer (no duplicates)
 // ✅ Manage Gallery (drag to reorder, delete) -> saves to assets/gallery.json
-// ✅ Reviews moderation (approve / reject pending reviews)
+// ✅ Reviews moderation (approve / reject pending, delete published)
 //
 // --- CONFIG ---
 const WORKER_URL = "https://dc-commit.evilkingsnowy.workers.dev";
@@ -202,7 +202,7 @@ function setEditing(on) {
     document.addEventListener("selectionchange", onSelChange);
     document.addEventListener("click", onSelChange, true);
   } else {
-    document.removeEventListener("selectionchange", onSelChange);
+    document.removeEventListener("selectionchange", onSelChange, true);
     document.removeEventListener("click", onSelChange, true);
     hideTextToolbar();
   }
@@ -639,10 +639,20 @@ revBtn.onclick = async ()=>{
         };
         actions.append(approve, reject);
       } else {
-        const label = document.createElement("span");
-        label.textContent = "Published";
-        label.style.opacity = ".7";
-        actions.append(label);
+        // Published controls: Delete
+        const del = document.createElement("button");
+        del.textContent = "Delete";
+        styleMiniBtn(del, "#dc3545");
+        del.onclick = async ()=>{
+          const rr = await fetch(WORKER_URL, {
+            method:"POST",
+            headers:{ "Content-Type":"application/json","X-Admin-Key":ADMIN_KEY },
+            body: JSON.stringify({ action:"reviews-delete", id: it.id })
+          });
+          if (rr.ok) { toast("Deleted.", 1800); panel.remove(); revBtn.onclick(); }
+          else toast("Failed to delete", 3000, true);
+        };
+        actions.append(del);
       }
       target.appendChild(card);
     });
@@ -670,7 +680,7 @@ function injectYouTubeIcon() {
 
   const a = document.createElement("a");
   a.href = YOUTUBE_URL;
-  a.target = "_blank";
+  a.target = "blank";
   a.rel = "noopener";
   a.ariaLabel = "YouTube";
   a.className = "dc-yt-link";
