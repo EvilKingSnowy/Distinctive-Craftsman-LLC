@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Customer Reviews | Distinctive Craftsman LLC</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reviews • Distinctive Craftsman LLC</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
+<body style="position:relative">
 
 <header class="site-header">
   <a href="index.html" class="brand">
@@ -25,21 +25,17 @@
 </header>
 
 <main>
-  <section class="section light">
+  <section class="section white">
     <div class="container">
       <h1>Customer Reviews</h1>
-      <p>See what others are saying about Distinctive Craftsman, or leave your own review below.</p>
+      <p>Read verified reviews and leave your own. New reviews are held for approval.</p>
+    </div>
+  </section>
 
-      <div id="reviews-list" class="card-list">
-        <!-- Reviews will show here -->
-      </div>
-
-      <h2>Leave a Review</h2>
-      <form id="review-form">
-        <input type="text" id="review-name" placeholder="Your Name" required>
-        <textarea id="review-text" placeholder="Your Review" required></textarea>
-        <button type="submit" class="btn primary">Submit Review</button>
-      </form>
+  <section class="section white">
+    <div class="container">
+      <!-- Reviews list + form get mounted here by reviews.js -->
+      <div id="reviews"></div>
     </div>
   </section>
 </main>
@@ -61,39 +57,20 @@
       <a href="contact.html">Contact</a>
     </nav>
   </div>
+  <div class="footer-col">
+    <h4>Contact</h4>
+    <p>601 N. Ringold St., Janesville, WI 53545</p>
+    <p><a href="tel:+16084369003" style="color:#0d6efd;">(608) 436-9003</a></p>
+    <p>Fax: (608) 754-4515</p>
+    <p><a href="mailto:jeff@distinctivecraftsman.com" style="color:#0d6efd;">jeff@distinctivecraftsman.com</a></p>
+    <p>Mon–Fri 8–6 · Sat 9–3</p>
+  </div>
 </footer>
 
 <div class="copyright">© 2025 Distinctive Craftsman LLC</div>
 
+<!-- Scripts -->
+<script src="reviews.js"></script>
 <script src="edit-mode.js"></script>
-<script>
-const reviewsList = document.getElementById("reviews-list");
-const form = document.getElementById("review-form");
-
-function loadReviews() {
-  const reviews = JSON.parse(localStorage.getItem("reviews") || "[]");
-  reviewsList.innerHTML = "";
-  for (const r of reviews) {
-    const div = document.createElement("div");
-    div.className = "card";
-    div.innerHTML = `<strong>${r.name}</strong><p>${r.text}</p>`;
-    reviewsList.appendChild(div);
-  }
-}
-
-form.addEventListener("submit", e => {
-  e.preventDefault();
-  const name = document.getElementById("review-name").value.trim();
-  const text = document.getElementById("review-text").value.trim();
-  if (!name || !text) return;
-  const reviews = JSON.parse(localStorage.getItem("reviews") || "[]");
-  reviews.unshift({ name, text });
-  localStorage.setItem("reviews", JSON.stringify(reviews));
-  form.reset();
-  loadReviews();
-});
-
-loadReviews();
-</script>
 </body>
 </html>
