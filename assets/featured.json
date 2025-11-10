@@ -1,3 +1,8 @@
 {
-  "images": ["london.jpg", "staugustine.jpg", "milan.jpg", "montreal.jpg"]
+  "images": [
+    "london.jpg",
+    "milan.jpg",
+    "staugustine.jpg",
+    "montreal.jpg"
+  ]
 }
