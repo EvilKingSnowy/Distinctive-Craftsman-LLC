@@ -1,0 +1,30 @@
+backend:
+  name: github
+  repo: EvilKingSnowy/Distinctive-Craftsman-LLC
+  branch: main
+  base_url: https://decap-oauth.netlify.app   # temporary demo OAuth proxy (public). For production, set your own.
+
+media_folder: "assets/gallery"     # where uploaded images go in repo
+public_folder: "/assets/gallery"   # how site references them
+
+publish_mode: editorial_workflow
+
+collections:
+  - name: "featured"
+    label: "Homepage Featured Images"
+    file: "assets/featured.json"
+    format: "json"
+    fields:
+      - {label: "Images (in order)", name: "list", widget: "list", field: {label: "Filename", name: "filename", widget: "string"}}
+
+  - name: "site_copy"
+    label: "Site Copy"
+    files:
+      - name: "home"
+        label: "Home Copy"
+        file: "index.html"
+        fields:
+          - {label: "Hero Heading", name: "hero_title", widget: "string", required: false}
+          - {label: "Hero Paragraph", name: "hero_text", widget: "text", required: false}
+    editor:
+      preview: false
