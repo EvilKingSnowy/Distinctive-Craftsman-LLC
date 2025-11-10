@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Reviews • Distinctive Craftsman LLC</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reviews — Distinctive Craftsman LLC</title>
+  <meta name="description" content="Customer reviews for Distinctive Craftsman LLC.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Serif+4:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 </head>
-<body style="position:relative">
-
+<body>
 <header class="site-header">
-  <a href="index.html" class="brand">
-    <img src="assets/logo.png" alt="Distinctive Craftsman LLC">
-  </a>
+  <a href="index.html" class="brand"><img src="assets/logo.png" alt="Distinctive Craftsman LLC"></a>
   <nav class="site-nav">
     <a href="index.html">Home</a>
     <a href="about.html">About</a>
     <a href="services.html">Services</a>
     <a href="gallery.html">Gallery</a>
     <a href="testimonials.html">Testimonials</a>
-    <a href="reviews.html" aria-current="page">Reviews</a>
+    <a class="active" href="reviews.html">Reviews</a>
     <a href="employment.html">Employment</a>
     <a href="contact.html">Contact</a>
   </nav>
@@ -27,50 +27,72 @@
 <main>
   <section class="section white">
     <div class="container">
-      <h1>Customer Reviews</h1>
-      <p>Read verified reviews and leave your own. New reviews are held for approval.</p>
+      <h1>Reviews</h1>
+      <p>Read what customers are saying. Have we worked together? Leave a review below.</p>
+    </div>
+  </section>
+
+  <section class="section light">
+    <div class="container">
+      <h2>Leave a Review</h2>
+      <form id="review-form" style="display:grid; gap:12px; max-width:640px;">
+        <label>
+          <div>Name</div>
+          <input name="name" required placeholder="Your name" style="width:100%; padding:10px;">
+        </label>
+        <label>
+          <div>Rating</div>
+          <select name="rating" required style="width:120px; padding:10px;">
+            <option value="5">★★★★★ (5)</option>
+            <option value="4">★★★★☆ (4)</option>
+            <option value="3">★★★☆☆ (3)</option>
+            <option value="2">★★☆☆☆ (2)</option>
+            <option value="1">★☆☆☆☆ (1)</option>
+          </select>
+        </label>
+        <label>
+          <div>Review</div>
+          <textarea name="text" rows="6" required placeholder="Share your experience…" style="width:100%; padding:10px;"></textarea>
+        </label>
+        <button type="submit" class="btn primary" style="width:max-content;">Submit Review</button>
+        <div id="review-note" style="opacity:.8; font-size:.95rem;"></div>
+      </form>
     </div>
   </section>
 
   <section class="section white">
     <div class="container">
-      <!-- Reviews list + form get mounted here by reviews.js -->
-      <div id="reviews"></div>
+      <h2>Published Reviews</h2>
+      <div id="reviews-list" style="display:grid; gap:14px;"></div>
     </div>
   </section>
 </main>
 
 <footer class="footer">
+  <!-- your existing footer layout is fine -->
   <div class="footer-col">
     <p>Wisconsin's premier custom woodworking and home renovation specialists. Crafted with precision, built to last.</p>
   </div>
   <div class="footer-col">
     <h4>Quick Links</h4>
     <nav class="footer-nav">
-      <a href="index.html">Home</a>
-      <a href="about.html">About</a>
-      <a href="services.html">Services</a>
-      <a href="gallery.html">Gallery</a>
-      <a href="testimonials.html">Testimonials</a>
-      <a href="reviews.html" aria-current="page">Reviews</a>
-      <a href="employment.html">Employment</a>
-      <a href="contact.html">Contact</a>
+      <a href="index.html">Home</a><a href="about.html">About</a><a href="services.html">Services</a>
+      <a href="gallery.html">Gallery</a><a href="testimonials.html">Testimonials</a>
+      <a href="reviews.html">Reviews</a><a href="employment.html">Employment</a><a href="contact.html">Contact</a>
     </nav>
   </div>
   <div class="footer-col">
     <h4>Contact</h4>
     <p>601 N. Ringold St., Janesville, WI 53545</p>
-    <p><a href="tel:+16084369003" style="color:#0d6efd;">(608) 436-9003</a></p>
+    <p><a href="tel:+16084369003">(608) 436-9003</a></p>
     <p>Fax: (608) 754-4515</p>
-    <p><a href="mailto:jeff@distinctivecraftsman.com" style="color:#0d6efd;">jeff@distinctivecraftsman.com</a></p>
-    <p>Mon–Fri 8–6 · Sat 9–3</p>
+    <p><a href="mailto:jeff@distinctivecraftsman.com">jeff@distinctivecraftsman.com</a></p>
+    <p>Mon–Fri 8–6  ·  Sat 9–3</p>
   </div>
 </footer>
-
 <div class="copyright">© 2025 Distinctive Craftsman LLC</div>
 
-<!-- Scripts -->
-<script src="reviews.js"></script>
 <script src="edit-mode.js"></script>
+<script src="reviews.js"></script>
 </body>
 </html>
