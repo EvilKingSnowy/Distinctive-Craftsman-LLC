@@ -1,45 +1,24 @@
-// ===== Distinctive Craftsman – In-page Editor (v2) =====
-// - Single Admin button on every page
-// - Password gate (to reveal controls)
-// - Edit text on headings/paragraphs/lists/etc.
-// - Upload image -> click a spot -> image appears immediately
-// - Drag to reposition image (absolute inside clicked container)
-// - Save commits the current page's HTML via your Cloudflare Worker
-//
-// Requires your Worker URL and the ADMIN_PASS secret set in Cloudflare.
-// Your Worker already supports: action="save" and action="upload".
+// ===== Distinctive Craftsman — In-Page Editor (v3) =====
+// - Admin button (password gate) on every page
+// - Edit text anywhere
+// - Upload image -> click to place on THIS page -> drag anywhere
+// - Delete images you placed
+// - Save commits current page HTML via your Cloudflare Worker
 
 const WORKER_URL = "https://dc-commit.evilkingsnowy.workers.dev";
 
-let ADMIN_KEY = "";     // collected after "Admin" login
+let ADMIN_KEY = "";
 let editing = false;
+let placingImage = null; // {dataUrl, finalPath, width}
 
-// -------- Utilities --------
-function pagePath() {
-  const p = window.location.pathname.split("/").pop();
+// -------- helpers --------
+const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+const pagePath = () => {
+  const p = location.pathname.split("/").pop();
   return p && p.length ? p : "index.html";
-}
+};
 
-// Which elements should be contentEditable during edit mode
-const EDITABLE_SELECTORS = [
-  "h1","h2","h3","h4","h5","h6",
-  "p","li","span","strong","em","blockquote",
-  "a","button","figcaption","label"
-].join(",");
-
-function setEditing(on) {
-  editing = on;
-  // Toggle contentEditable on intended text elements (not admin UI)
-  document.querySelectorAll(EDITABLE_SELECTORS).forEach(el => {
-    if (!el.classList.contains("dc-admin-ui")) {
-      el.contentEditable = on ? "true" : "false";
-      el.style.outline = on ? "1px dashed rgba(0,0,0,.2)" : "";
-    }
-  });
-  // Keep admin UI non-editable
-  document.querySelectorAll(".dc-admin-ui").forEach(el => (el.contentEditable = "false"));
-}
-
+// build a floating button
 function makeBtn(label, bg, rightPx) {
   const b = document.createElement("button");
   b.textContent = label;
@@ -58,129 +37,291 @@ function makeBtn(label, bg, rightPx) {
     zIndex: "999999"
   });
   b.contentEditable = "false";
+  b.draggable = false;
   return b;
 }
 
-// Remove admin UI + editing marks before saving
-function prepareForSave(docElem) {
-  // strip admin UI
-  docElem.querySelectorAll(".dc-admin-ui").forEach(el => el.remove());
-
+// keep admin UI out of the save & out of editing
+function stripForSave(docElem) {
+  // remove controls
+  qsa(".dc-admin-ui", docElem).forEach(el => el.remove());
   // convert preview images to their final src
-  docElem.querySelectorAll("img[data-final-src]").forEach(img => {
+  qsa("img[data-final-src]", docElem).forEach(img => {
     img.setAttribute("src", img.getAttribute("data-final-src"));
     img.removeAttribute("data-final-src");
+    img.removeAttribute("data-dc");
   });
-
-  // remove outlines + contentEditable flags
-  docElem.querySelectorAll("[contenteditable]").forEach(el => {
+  // clear edit outlines/flags
+  qsa("[contenteditable]", docElem).forEach(el => {
     el.removeAttribute("contenteditable");
     el.style.outline = "";
   });
-
   return docElem;
 }
 
-function nowHtmlForSaving() {
+function currentHtmlForSave() {
   const clone = document.documentElement.cloneNode(true);
-  prepareForSave(clone);
+  stripForSave(clone);
   return "<!DOCTYPE html>\n" + clone.outerHTML;
 }
 
-// -------- Dragging for images --------
-function makeDraggable(el, container) {
-  el.classList.add("dc-draggable");
-  el.style.position = "absolute";
-  el.style.cursor = "move";
+// ---------- EDIT TEXT ----------
+const TEXT_EDIT_SELECTORS = [
+  "h1","h2","h3","h4","h5","h6",
+  "p","li","span","strong","em","blockquote",
+  "a","button","figcaption","label"
+].join(",");
 
-  // ensure container anchors positioning
-  const style = getComputedStyle(container);
-  if (style.position === "static") container.style.position = "relative";
+function setEditing(on) {
+  editing = on;
 
-  function onMouseDown(ev) {
-    if (!editing) return;
-    ev.preventDefault();
-    const rect = container.getBoundingClientRect();
-    const startX = ev.clientX - (parseFloat(el.style.left || 0));
-    const startY = ev.clientY - (parseFloat(el.style.top || 0));
+  // simplest, most compatible: make whole body editable
+  // but force admin UI to be non-editable.
+  document.body.contentEditable = on ? "true" : "false";
+  qsa(".dc-admin-ui").forEach(el => el.contentEditable = "false");
 
-    function onMove(e) {
-      const x = e.clientX - startX - rect.left;
-      const y = e.clientY - startY - rect.top;
-      el.style.left = Math.max(0, x) + "px";
-      el.style.top  = Math.max(0, y) + "px";
+  // add a faint outline for typical text elements so you can see what’s editable
+  qsa(TEXT_EDIT_SELECTORS).forEach(el => {
+    if (on) {
+      el.style.outline = "1px dashed rgba(0,0,0,.2)";
+      el.style.outlineOffset = "2px";
+    } else {
+      el.style.outline = "";
     }
-    function onUp() {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    }
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }
-  el.addEventListener("mousedown", onMouseDown);
+  });
+
+  // images you placed get the drag & toolbar only while editing
+  qsa("img[data-dc='1']").forEach(img => {
+    if (on) attachDrag(img);
+    else detachDrag(img);
+  });
 }
 
-// -------- Buttons --------
-const adminBtn = makeBtn("Admin", "#6c757d", 20);
-const editBtn  = makeBtn("Edit Site", "#0d6efd", 115);
-const saveBtn  = makeBtn("Save Changes", "#198754", 215);
-const uploadBtn= makeBtn("Upload Image", "#fd7e14", 350);
+// ---------- DRAGGING & IMAGE TOOLBAR ----------
+function ensureRelative(container) {
+  const cs = getComputedStyle(container);
+  if (cs.position === "static") container.style.position = "relative";
+}
+
+function attachDrag(img) {
+  if (img._dragBound) return;
+  img.style.cursor = "move";
+  img.style.position = img.style.position || "absolute";
+
+  const container = img.parentElement;
+  ensureRelative(container);
+
+  function onDown(ev) {
+    if (!editing) return;
+    ev.preventDefault();
+
+    const rectC = container.getBoundingClientRect();
+    const rectI = img.getBoundingClientRect();
+    const offsetX = ev.clientX - rectI.left;
+    const offsetY = ev.clientY - rectI.top;
+
+    function onMove(e) {
+      img.style.left = Math.max(0, e.clientX - rectC.left - offsetX) + "px";
+      img.style.top  = Math.max(0, e.clientY - rectC.top  - offsetY) + "px";
+    }
+    function onUp() {
+      removeEventListener("mousemove", onMove);
+      removeEventListener("mouseup", onUp);
+    }
+    addEventListener("mousemove", onMove);
+    addEventListener("mouseup", onUp);
+  }
+
+  function onClick(e) {
+    if (!editing) return;
+    showImageToolbar(img, e.clientX, e.clientY);
+  }
+
+  img.addEventListener("mousedown", onDown);
+  img.addEventListener("click", onClick);
+  img._dragBound = {onDown, onClick};
+}
+
+function detachDrag(img) {
+  const b = img._dragBound;
+  if (!b) return;
+  img.removeEventListener("mousedown", b.onDown);
+  img.removeEventListener("click", b.onClick);
+  img.style.cursor = "";
+  delete img._dragBound;
+}
+
+let toolbarDiv = null;
+function showImageToolbar(img, x, y) {
+  if (toolbarDiv) toolbarDiv.remove();
+  toolbarDiv = document.createElement("div");
+  toolbarDiv.className = "dc-admin-ui";
+  Object.assign(toolbarDiv.style, {
+    position: "fixed",
+    left: (x + 8) + "px",
+    top:  (y + 8) + "px",
+    background: "#222",
+    color: "#fff",
+    padding: "6px 8px",
+    borderRadius: "8px",
+    zIndex: "999999",
+    display: "flex",
+    gap: "6px",
+    fontSize: "13px",
+    alignItems: "center"
+  });
+
+  const del = document.createElement("button");
+  del.textContent = "🗑️ Delete";
+  styleMiniBtn(del, "#dc3545");
+  del.onclick = () => { img.remove(); toolbarDiv.remove(); };
+
+  const smaller = document.createElement("button");
+  smaller.textContent = "−";
+  styleMiniBtn(smaller, "#6c757d");
+  smaller.onclick = () => img.style.width = Math.max(50, img.clientWidth - 20) + "px";
+
+  const bigger = document.createElement("button");
+  bigger.textContent = "+";
+  styleMiniBtn(bigger, "#6c757d");
+  bigger.onclick = () => img.style.width = (img.clientWidth + 20) + "px";
+
+  toolbarDiv.append(smaller, bigger, del);
+  document.body.appendChild(toolbarDiv);
+
+  // auto hide after a while / or next click away
+  setTimeout(() => { if (toolbarDiv) toolbarDiv.remove(); }, 4000);
+}
+
+function styleMiniBtn(btn, bg) {
+  Object.assign(btn.style, {
+    background: bg,
+    color: "#fff",
+    border: "none",
+    padding: "6px 8px",
+    borderRadius: "6px",
+    cursor: "pointer"
+  });
+  btn.className = "dc-admin-ui";
+  btn.contentEditable = "false";
+}
+
+// ---------- IMAGE UPLOAD -> PLACE ON THIS PAGE ----------
+async function uploadAndPlace(file) {
+  // 1) read for immediate preview
+  const dataUrl = await readAsDataURL(file);
+  const finalPath = `assets/gallery/${file.name}`;
+
+  // 2) quietly upload to repo via Worker (commit asset)
+  const res = await fetch(WORKER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Admin-Key": ADMIN_KEY },
+    body: JSON.stringify({
+      action: "upload",
+      path: finalPath,
+      fileBase64: dataUrl.split(",",2)[1],
+      message: `Upload ${finalPath}`
+    })
+  });
+  if (!res.ok) {
+    alert("❌ Upload failed:\n" + await res.text());
+    return;
+  }
+
+  // 3) ask user to click once to place it on THIS page
+  placingImage = { dataUrl, finalPath };
+  alert("✅ Image uploaded. Click anywhere on the page to place it. Then drag to reposition.");
+}
+
+function readAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+// one-time placement click
+document.addEventListener("click", (ev) => {
+  if (!placingImage || !editing) return;
+
+  // choose a sensible container near the click
+  let container =
+    ev.target.closest("section, main, article, .container, .content, .wrapper") ||
+    document.body;
+  ensureRelative(container);
+
+  // create the image at the clicked spot (absolute)
+  const img = new Image();
+  img.src = placingImage.dataUrl;          // instant preview
+  img.setAttribute("data-final-src", placingImage.finalPath);
+  img.setAttribute("data-dc", "1");        // mark as editor-placed
+  img.style.position = "absolute";
+  img.style.maxWidth = "320px";
+  img.style.left = "0px";
+  img.style.top  = "0px";
+
+  container.appendChild(img);
+  attachDrag(img);
+
+  // position centered on the click inside the container
+  const crect = container.getBoundingClientRect();
+  const x = ev.clientX - crect.left - (img.width / 2);
+  const y = ev.clientY - crect.top  - (img.height / 2);
+  img.style.left = Math.max(0, x) + "px";
+  img.style.top  = Math.max(0, y) + "px";
+
+  placingImage = null;
+}, true); // capture so we always get first shot
+
+// ---------- SAVE ----------
+async function saveCurrentPage() {
+  const html = currentHtmlForSave();
+  const path = pagePath();
+
+  const res = await fetch(WORKER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Admin-Key": ADMIN_KEY },
+    body: JSON.stringify({ action: "save", path, contentText: html, message: `Update ${path}` })
+  });
+  if (res.ok) alert("✅ Saved!");
+  else alert("❌ Save failed:\n" + await res.text());
+}
+
+// ---------- UI ----------
+const adminBtn  = makeBtn("Admin", "#6c757d", 20);
+const editBtn   = makeBtn("Edit Site", "#0d6efd", 110);
+const saveBtn   = makeBtn("Save Changes", "#198754", 210);
+const uploadBtn = makeBtn("Upload Image", "#fd7e14", 340);
 
 editBtn.style.display = "none";
 saveBtn.style.display = "none";
 uploadBtn.style.display = "none";
 
-adminBtn.addEventListener("click", () => {
+adminBtn.onclick = () => {
   const pass = prompt("Enter admin password:");
   if (!pass) return;
-  ADMIN_KEY = pass; // Worker will validate on request
-
-  // Reveal editor controls
+  ADMIN_KEY = pass; // Worker validates it
   editBtn.style.display = "inline-block";
   saveBtn.style.display = "inline-block";
   uploadBtn.style.display = "inline-block";
-
   alert("Admin unlocked. Click 'Edit Site' to start editing.");
-});
+};
 
-editBtn.addEventListener("click", () => {
+editBtn.onclick = () => {
   setEditing(!editing);
   editBtn.textContent = editing ? "Exit Edit" : "Edit Site";
-});
+};
 
-saveBtn.addEventListener("click", async () => {
+saveBtn.onclick = () => {
   if (!ADMIN_KEY) return alert("Unlock Admin first.");
+  saveCurrentPage();
+};
 
-  // Build final HTML and push to Worker
-  const html = nowHtmlForSaving();
-  const path = pagePath();
-
-  const res = await fetch(WORKER_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Admin-Key": ADMIN_KEY
-    },
-    body: JSON.stringify({
-      action: "save",
-      path,
-      contentText: html,
-      message: `Update ${path} via editor`
-    })
-  });
-
-  if (res.ok) {
-    alert("✅ Saved! GitHub Pages may take ~30–90s to reflect new assets.");
-    // location.reload(); // optional
-  } else {
-    alert("❌ Save failed:\n" + (await res.text()));
-  }
-});
-
-// Upload -> place -> draggable + preview
-uploadBtn.addEventListener("click", () => {
+uploadBtn.onclick = () => {
   if (!ADMIN_KEY) return alert("Unlock Admin first.");
-  if (!editing) return alert("Click 'Edit Site' first.");
+  if (!editing)   return alert("Click 'Edit Site' first.");
 
   const input = document.createElement("input");
   input.type = "file";
@@ -190,78 +331,12 @@ uploadBtn.addEventListener("click", () => {
   document.body.appendChild(input);
 
   input.onchange = async () => {
-    const file = input.files[0];
-    if (!file) return;
-
-    // Read as DataURL for instant preview
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const dataUrl = reader.result;
-      const base64 = dataUrl.split(",", 2)[1];
-      const destPath = `assets/gallery/${file.name}`;
-
-      // Upload to repo (background commit)
-      const up = await fetch(WORKER_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Admin-Key": ADMIN_KEY
-        },
-        body: JSON.stringify({
-          action: "upload",
-          path: destPath,
-          fileBase64: base64,
-          message: `Upload ${destPath}`
-        })
-      });
-
-      if (!up.ok) {
-        alert("❌ Upload failed:\n" + (await up.text()));
-        input.remove();
-        return;
-      }
-
-      alert("✅ Image uploaded. Click anywhere on the page to place it.");
-
-      // One-time click to place image
-      function placeOnce(ev) {
-        // choose nearest sensible container
-        let container = ev.target.closest("section, main, article, .container, body") || document.body;
-
-        const img = new Image();
-        img.src = dataUrl;                          // instant preview
-        img.dataset.finalSrc = destPath;            // saved HTML will use this
-        img.alt = file.name;
-        img.className = "dc-admin-ui";              // so it's not editable while placing
-        img.style.maxWidth = "300px";
-        img.style.left = "0px";
-        img.style.top = "0px";
-
-        // actual element we want persistent (not admin UI)
-        img.classList.remove("dc-admin-ui");
-        container.appendChild(img);
-        makeDraggable(img, container);
-
-        // position at click
-        const crect = container.getBoundingClientRect();
-        img.style.left = (ev.clientX - crect.left - img.width/2) + "px";
-        img.style.top  = (ev.clientY - crect.top  - img.height/2) + "px";
-
-        document.removeEventListener("click", placeOnce, true);
-      }
-
-      // capture first click (use capture phase to win)
-      document.addEventListener("click", placeOnce, true);
-      input.remove();
-    };
-    reader.readAsDataURL(file);
+    const f = input.files[0];
+    if (f) await uploadAndPlace(f);
+    input.remove();
   };
-
   input.click();
-});
+};
 
-// Add buttons to the DOM
-document.body.appendChild(adminBtn);
-document.body.appendChild(editBtn);
-document.body.appendChild(saveBtn);
-document.body.appendChild(uploadBtn);
+// add buttons once
+document.body.append(adminBtn, editBtn, saveBtn, uploadBtn);
