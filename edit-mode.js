@@ -1,5 +1,5 @@
 // ===== Distinctive Craftsman - Lightweight Edit Mode =====
-const DC_PASSCODE = "craftsman123"; // <- change your passcode
+const DC_PASSCODE = "TheBetkerSteffensens1107"; // <- change your passcode
 const DC_FEATURED_JSON_PATH = "assets/featured.json";
 const DC_FEATURED_EDIT_URL =
   "https://github.com/EvilKingSnowy/Distinctive-Craftsman-LLC/edit/main/assets/featured.json";
